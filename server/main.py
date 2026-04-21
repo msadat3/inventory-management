@@ -2,6 +2,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 from pydantic import BaseModel
+from datetime import date, timedelta
+import uuid
 from mock_data import inventory_items, orders, demand_forecasts, backlog_items, spending_summary, monthly_spending, category_spending, recent_transactions, purchase_orders
 
 app = FastAPI(title="Factory Inventory Management System")
@@ -120,6 +122,28 @@ class CreatePurchaseOrderRequest(BaseModel):
     expected_delivery_date: str
     notes: Optional[str] = None
 
+class CreateOrderRequest(BaseModel):
+    customer: str = "Internal Restocking"
+    items: List[dict]  # each: {sku, name, quantity, unit_price}
+
+# Task field names use camelCase (dueDate) to match the frontend JSON contract
+# in client/src/components/TasksModal.vue without alias plumbing.
+class Task(BaseModel):
+    id: str
+    title: str
+    priority: str
+    dueDate: str
+    status: str
+
+class CreateTaskRequest(BaseModel):
+    title: str
+    priority: str
+    dueDate: str
+
+# In-memory task store; resets on restart. Frontend already ships 4 mock
+# tasks from useAuth.js, so this starts empty to avoid duplicates.
+tasks_db: List[dict] = []
+
 # API endpoints
 @app.get("/")
 def root():
@@ -152,6 +176,31 @@ def get_orders(
     filtered_orders = apply_filters(orders, warehouse, category, status)
     filtered_orders = filter_by_month(filtered_orders, month)
     return filtered_orders
+
+@app.post("/api/orders", response_model=Order)
+def create_order(req: CreateOrderRequest):
+    """Create a new order (used by the Restocking tab). Appends to in-memory orders."""
+    today = date.today()
+    # RST- prefix distinguishes restocking-originated orders from imported ones,
+    # and keeps the fixed 7-day lead-time assumption traceable from the number.
+    rst_count = sum(1 for o in orders if o.get("order_number", "").startswith("RST-"))
+    order_number = f"RST-{rst_count + 1:04d}"
+    total_value = sum(i["quantity"] * i["unit_price"] for i in req.items)
+    new_order = {
+        "id": str(uuid.uuid4()),
+        "order_number": order_number,
+        "customer": req.customer,
+        "items": req.items,
+        "status": "Submitted",
+        "order_date": today.isoformat(),
+        "expected_delivery": (today + timedelta(days=7)).isoformat(),
+        "total_value": round(total_value, 2),
+        "actual_delivery": None,
+        "warehouse": None,
+        "category": None,
+    }
+    orders.append(new_order)
+    return new_order
 
 @app.get("/api/orders/{order_id}", response_model=Order)
 def get_order(order_id: str):
@@ -303,6 +352,42 @@ def get_monthly_trends():
     result = list(months.values())
     result.sort(key=lambda x: x['month'])
     return result
+
+@app.get("/api/tasks", response_model=List[Task])
+def get_tasks():
+    """Get all user tasks."""
+    return tasks_db
+
+@app.post("/api/tasks", response_model=Task)
+def create_task(req: CreateTaskRequest):
+    """Create a new user task. Status always starts as 'pending'."""
+    new_task = {
+        "id": str(uuid.uuid4()),
+        "title": req.title,
+        "priority": req.priority,
+        "dueDate": req.dueDate,
+        "status": "pending",
+    }
+    tasks_db.append(new_task)
+    return new_task
+
+@app.delete("/api/tasks/{task_id}")
+def delete_task(task_id: str):
+    """Delete a user task."""
+    for i, t in enumerate(tasks_db):
+        if t["id"] == task_id:
+            del tasks_db[i]
+            return {"success": True}
+    raise HTTPException(status_code=404, detail="Task not found")
+
+@app.patch("/api/tasks/{task_id}", response_model=Task)
+def toggle_task(task_id: str):
+    """Toggle a user task's status between pending and completed."""
+    task = next((t for t in tasks_db if t["id"] == task_id), None)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    task["status"] = "completed" if task["status"] == "pending" else "pending"
+    return task
 
 if __name__ == "__main__":
     import uvicorn
