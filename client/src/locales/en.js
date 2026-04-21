@@ -4,6 +4,7 @@ export default {
     overview: 'Overview',
     inventory: 'Inventory',
     orders: 'Orders',
+    restocking: 'Restocking',
     finance: 'Finance',
     demandForecast: 'Demand Forecast',
     companyName: 'Catalyst Components',
@@ -112,6 +113,7 @@ export default {
     onTimeDelivery: 'On-Time Delivery',
     itemsCount: '{count} items',
     quantity: 'Qty',
+    submittedOrders: 'Submitted Orders',
     table: {
       orderNumber: 'Order Number',
       orderId: 'Order ID',
@@ -125,7 +127,38 @@ export default {
       totalValue: 'Total Value',
       status: 'Status',
       expectedDelivery: 'Expected Delivery',
-      actualDelivery: 'Actual Delivery'
+      actualDelivery: 'Actual Delivery',
+      leadTime: 'Lead Time'
+    }
+  },
+
+  // Restocking
+  restocking: {
+    title: 'Restocking',
+    description: 'Set a budget and place a restocking order based on demand forecasts',
+    budgetCard: 'Available Budget',
+    budgetHelper: 'Drag the slider to set how much you can spend on restocking.',
+    itemsRecommended: 'Items Recommended',
+    remainingBudget: 'Remaining Budget',
+    totalCost: 'Total Cost',
+    recommendations: 'Recommended Items',
+    placeOrder: 'Place Order',
+    submitting: 'Submitting...',
+    empty: 'Increase your budget to see recommendations.',
+    noGap: 'All forecasted demand is already covered by current inventory.',
+    orderPlaced: 'Order {orderNumber} submitted for {total}.',
+    viewInOrders: 'View in Orders tab',
+    subtitle: 'Ranked by shortfall (forecast or reorder point, whichever is larger). Quantities scale proportionally with your budget.',
+    table: {
+      sku: 'SKU',
+      name: 'Item',
+      category: 'Category',
+      onHand: 'On Hand',
+      target: 'Target',
+      shortfall: 'Shortfall',
+      unitCost: 'Unit Cost',
+      suggestedQty: 'Order Qty',
+      lineTotal: 'Line Total'
     }
   },
 
@@ -204,6 +237,7 @@ export default {
     shipped: 'Shipped',
     processing: 'Processing',
     backordered: 'Backordered',
+    submitted: 'Submitted',
     inStock: 'In Stock',
     lowStock: 'Low Stock',
     adequate: 'Adequate'
